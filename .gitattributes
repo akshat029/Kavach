@@ -1,0 +1,24 @@
+# Normalise line endings so a Windows checkout does not produce a diff on every file.
+* text=auto eol=lf
+
+# Windows batch files must keep CRLF or cmd.exe mis-parses them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts and the Gradle wrapper must keep LF or the shebang breaks.
+*.sh   text eol=lf
+gradlew text eol=lf
+
+# Binary. Never diff, never normalise.
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.jar  binary
+*.keystore binary
+*.jks  binary
+*.apk  binary
+
+# Generated. Collapse in pull request diffs so real changes stay reviewable.
+blocklists/trackers.txt              linguist-generated=true
+blocklists/ads.txt                   linguist-generated=true
+app/src/main/assets/blocklists/*.txt linguist-generated=true
