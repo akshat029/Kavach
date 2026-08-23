@@ -50,7 +50,7 @@ never installs a certificate.
 ├─────────────────────────────────────────────────────────────────┤
 │  Plane 0 — Isolation            SHIPPED (optional)                │
 │  managed work profile, kernel-enforced, sealed both directions    │
-└─────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 Planes 0 and 1 are independent. Neither requires the other; each is useful alone. Plane 3
