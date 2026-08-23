@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kavach</string>
+
+    <string name="device_admin_label">Kavach Isolation</string>
+    <string name="device_admin_description">Lets Kavach create and manage an isolated work profile so apps placed inside it cannot see apps or data outside it.</string>
+
+    <string name="notif_channel_tunnel_name">Filtering tunnel</string>
+    <string name="notif_channel_tunnel_desc">Shows while the Kavach filtering tunnel is active.</string>
+    <string name="notif_channel_alerts_name">Alerts</string>
+    <string name="notif_channel_alerts_desc">Blocklist updates and policy warnings.</string>
+
+    <string name="tunnel_active">Shield active</string>
+    <string name="tunnel_inactive">Shield off</string>
+    <string name="tunnel_stop">Stop</string>
+
+    <string name="nav_dashboard">Shield</string>
+    <string name="nav_apps">Apps</string>
+    <string name="nav_logs">Activity</string>
+    <string name="nav_isolation">Isolation</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="isolation_profile_name">Kavach</string>
+    <string name="isolation_disable_warning">Turning this off removes the Kavach work profile and permanently deletes every app and file inside it.</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="kavach_shield">#FF2E7D5B</color>
+    <color name="kavach_shield_dark">#FF11351F</color>
+    <color name="ic_launcher_background">#FF0E1A14</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
