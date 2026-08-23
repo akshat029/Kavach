@@ -1,0 +1,139 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test, lint and assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      # gradle-wrapper.jar is a binary and is deliberately not committed. Regenerating
+      # it from the pinned distribution keeps the repository text-only while still
+      # giving contributors a working ./gradlew after one build.
+      - name: Restore the Gradle wrapper
+        run: |
+          set -eu
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "gradle-wrapper.jar absent, regenerating from Gradle 8.9"
+            gradle wrapper --gradle-version 8.9 --distribution-type bin
+          fi
+          chmod +x gradlew
+          ./gradlew --version
+
+      - name: Decode the signing keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KAVACH_KEYSTORE_BASE64 }}
+        run: |
+          set -eu
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/kavach.jks"
+            echo "path=$RUNNER_TEMP/kavach.jks" >> "$GITHUB_OUTPUT"
+            echo "Release build will be signed."
+          else
+            echo "path=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No KAVACH_KEYSTORE_BASE64 secret set. The release APK will be unsigned; install the debug APK instead."
+          fi
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon --stacktrace testDebugUnitTest
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Android Lint
+        run: ./gradlew --no-daemon --stacktrace lintDebug
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Assemble release APK
+        env:
+          KAVACH_KEYSTORE_PATH: ${{ steps.keystore.outputs.path }}
+          KAVACH_KEYSTORE_PASSWORD: ${{ secrets.KAVACH_KEYSTORE_PASSWORD }}
+          KAVACH_KEY_ALIAS: ${{ secrets.KAVACH_KEY_ALIAS }}
+          KAVACH_KEY_PASSWORD: ${{ secrets.KAVACH_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Report APK checksums
+        run: |
+          set -eu
+          echo "### APK artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Size | SHA-256 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          find app/build/outputs/apk -name '*.apk' -print0 | while IFS= read -r -d '' apk; do
+            size=$(stat -c%s "$apk")
+            sum=$(sha256sum "$apk" | cut -d' ' -f1)
+            echo "| \`$(basename "$apk")\` | ${size} B | \`${sum}\` |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kavach-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: kavach-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload mapping file
+        uses: actions/upload-artifact@v4
+        with:
+          name: kavach-release-mapping
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: ignore
+          retention-days: 90

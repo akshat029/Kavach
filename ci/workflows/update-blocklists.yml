@@ -1,0 +1,92 @@
+name: Update blocklists
+
+on:
+  schedule:
+    # 03:00 UTC nightly, well outside peak hours for the upstream mirrors.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "blocklists/seed-*.txt"
+      - "scripts/compile_blocklists.py"
+      - ".github/workflows/update-blocklists.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-blocklists
+  cancel-in-progress: false
+
+jobs:
+  compile:
+    name: Compile and commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Runs with no network access to the feeds so a broken parser is caught here
+      # rather than after a bad list has already been published.
+      - name: Self-check the compiler offline
+        run: |
+          set -eu
+          python3 scripts/compile_blocklists.py --offline --output-dir "$RUNNER_TEMP/offline" || true
+          mkdir -p "$RUNNER_TEMP/offline"
+          cp blocklists/seed-trackers.txt blocklists/seed-ads.txt "$RUNNER_TEMP/offline/"
+          python3 scripts/compile_blocklists.py --offline --output-dir "$RUNNER_TEMP/offline"
+          test -s "$RUNNER_TEMP/offline/trackers.txt"
+          test -s "$RUNNER_TEMP/offline/ads.txt"
+
+      - name: Compile from upstream feeds
+        run: python3 scripts/compile_blocklists.py
+
+      - name: Sync the bundled copies shipped in the APK
+        run: |
+          set -eu
+          mkdir -p app/src/main/assets/blocklists
+          cp blocklists/trackers.txt app/src/main/assets/blocklists/trackers.txt
+          cp blocklists/ads.txt app/src/main/assets/blocklists/ads.txt
+
+      - name: Sanity-check the output
+        run: |
+          set -eu
+          for f in blocklists/trackers.txt blocklists/ads.txt; do
+            entries=$(grep -cve '^#' -e '^$' "$f" || true)
+            echo "$f: $entries entries"
+            if [ "$entries" -lt 150 ]; then
+              echo "::error::$f collapsed to $entries entries; refusing to publish."
+              exit 1
+            fi
+            # Anything that is not a bare domain would be dead weight on the device.
+            if grep -Eve '^#' -e '^$' -e '^[a-z0-9][a-z0-9._-]*\.[a-z0-9._-]+$' "$f" | head -n 5 | grep -q .; then
+              echo "::error::$f contains lines that are not bare domains:"
+              grep -Eve '^#' -e '^$' -e '^[a-z0-9][a-z0-9._-]*\.[a-z0-9._-]+$' "$f" | head -n 5
+              exit 1
+            fi
+          done
+
+      - name: Commit if anything changed
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add blocklists/trackers.txt blocklists/ads.txt \
+                  app/src/main/assets/blocklists/trackers.txt \
+                  app/src/main/assets/blocklists/ads.txt
+          if git diff --staged --quiet; then
+            echo "No changes."
+          else
+            trackers=$(grep -cve '^#' -e '^$' blocklists/trackers.txt || true)
+            ads=$(grep -cve '^#' -e '^$' blocklists/ads.txt || true)
+            git commit -m "chore(blocklists): refresh compiled lists (${trackers} trackers, ${ads} ads)"
+            git push
+          fi
