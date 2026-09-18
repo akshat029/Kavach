@@ -970,6 +970,7 @@ brilliantcollector.com
 broadstreet.ai
 bronto.com
 browser-intake-datadoghq.com
+browser-intake-datadoghq.eu
 browser-statistik.de
 browser-update.org
 browser.events.data.microsoft.com
@@ -2988,7 +2989,6 @@ logs-ingress.svc.vinted.com
 logs-sg.rebxgame.com
 logs.adplay.ru
 logs.amap.com
-logs.browser-intake-datadoghq.eu
 logs.chatboost-cv.algoage.co.jp
 logs.classdojo.com
 logs.datadoghq.com
