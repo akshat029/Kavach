@@ -1886,6 +1886,7 @@ event-api.hackle.io
 event-collector.moviesanywhere.com
 event-dot-learning-piano.appspot.com
 event-gateway.data.karrotmarket.com
+event-ingestion.yazio-analytics.com
 event-log-api-data-platform-data-lake-prod.gryphline.com
 event-log-api-ipv6.gryphline.com
 event-portal.dailyinnovation.biz
@@ -5817,7 +5818,6 @@ yandexmetric.com
 yandexmetrica.com
 yatr.ru
 yaudience.com
-yazio-analytics.com
 ybotvisit.com
 ye.dun.163yun.com
 yektanet.com
